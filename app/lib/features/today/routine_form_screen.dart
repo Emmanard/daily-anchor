@@ -5,10 +5,19 @@ import 'routine.dart';
 import 'routines_provider.dart';
 
 class RoutineFormScreen extends ConsumerStatefulWidget {
-  const RoutineFormScreen({super.key, this.routine});
+  const RoutineFormScreen({
+    super.key,
+    this.routine,
+    this.initialTitle,
+    this.iconKey = Routine.defaultIconKey,
+  });
 
   /// The routine being edited, or null when adding a new one.
   final Routine? routine;
+
+  /// Name and icon to start a new routine with, from an example.
+  final String? initialTitle;
+  final String iconKey;
 
   @override
   ConsumerState<RoutineFormScreen> createState() => _RoutineFormScreenState();
@@ -17,7 +26,9 @@ class RoutineFormScreen extends ConsumerStatefulWidget {
 class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
   static const _maxLength = 60;
 
-  late final _controller = TextEditingController(text: widget.routine?.title);
+  late final _controller = TextEditingController(
+    text: widget.routine?.title ?? widget.initialTitle,
+  );
   String? _error;
   bool _saving = false;
 
@@ -42,7 +53,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
     final notifier = ref.read(routinesProvider.notifier);
     final existing = widget.routine;
     final saved = existing == null
-        ? await notifier.add(title)
+        ? await notifier.add(title, iconKey: widget.iconKey)
         : await notifier.rename(existing.id, title);
 
     if (!mounted) return;

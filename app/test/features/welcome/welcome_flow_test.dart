@@ -2,7 +2,6 @@ import 'package:daily_anchor/app.dart';
 import 'package:daily_anchor/features/settings/app_settings.dart';
 import 'package:daily_anchor/features/settings/settings_provider.dart';
 import 'package:daily_anchor/features/settings/settings_repository.dart';
-import 'package:daily_anchor/features/today/routine.dart';
 import 'package:daily_anchor/features/today/routines_provider.dart';
 import 'package:daily_anchor/features/today/today_provider.dart';
 import 'package:flutter/material.dart';
@@ -14,17 +13,22 @@ import 'package:shared_preferences_platform_interface/shared_preferences_async_p
 import '../../support/in_memory_event_repository.dart';
 import '../../support/in_memory_routine_repository.dart';
 
-Widget _app(InMemoryRoutineRepository routines, {double textScale = 1.0}) =>
-    ProviderScope(
-      overrides: [
-        initialSettingsProvider.overrideWithValue(
-          AppSettings(textScale: textScale),
-        ),
-        eventRepositoryProvider.overrideWithValue(InMemoryEventRepository()),
-        routineRepositoryProvider.overrideWithValue(routines),
-      ],
-      child: const DailyAnchorApp(),
-    );
+Widget _app({AppSettings settings = const AppSettings()}) => ProviderScope(
+  overrides: [
+    initialSettingsProvider.overrideWithValue(settings),
+    eventRepositoryProvider.overrideWithValue(InMemoryEventRepository()),
+    routineRepositoryProvider.overrideWithValue(
+      InMemoryRoutineRepository(routines: []),
+    ),
+  ],
+  child: const DailyAnchorApp(),
+);
+
+Future<void> _acceptDisclaimer(WidgetTester tester) async {
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('I understand'));
+  await tester.pumpAndSettle();
+}
 
 void main() {
   setUp(() {
@@ -32,91 +36,96 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
-  testWidgets('first launch shows the welcome screen with the disclaimer', (
+  testWidgets('first launch asks the user to accept before starting', (
     tester,
   ) async {
-    await tester.pumpWidget(_app(InMemoryRoutineRepository(routines: [])));
+    await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome to Daily Anchor'), findsOneWidget);
+    expect(find.text('Before you start'), findsOneWidget);
     expect(find.textContaining('not a medical product'), findsOneWidget);
+    expect(find.text('I understand'), findsOneWidget);
+
+    await tester.tap(find.text('I understand'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Before you start'), findsNothing);
+    expect(find.text('Welcome to Daily Anchor'), findsOneWidget);
     expect(find.text('Today'), findsNothing);
   });
 
-  testWidgets('chosen suggestions become routines and the welcome is saved', (
+  testWidgets('the cards can be stepped through with Next and Back', (
     tester,
   ) async {
-    final routines = InMemoryRoutineRepository(routines: []);
-    await tester.pumpWidget(_app(routines));
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(_app());
+    await _acceptDisclaimer(tester);
 
-    await tester.tap(find.text('Morning water'));
-    await tester.tap(find.text('Call someone'));
-    await tester.pump();
+    expect(find.text('Step 1 of 4'), findsOneWidget);
+    expect(find.text('Back'), findsNothing);
+
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('Step 2 of 4'), findsOneWidget);
+    expect(find.text('Your routines, your way'), findsOneWidget);
+
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('A short word exercise'), findsOneWidget);
+
+    await tester.tap(find.text('Back'));
+    await tester.pumpAndSettle();
+    expect(find.text('Step 2 of 4'), findsOneWidget);
+
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('Step 4 of 4'), findsOneWidget);
+    expect(find.text('Works without internet'), findsOneWidget);
+    expect(find.text('Get started'), findsOneWidget);
+    expect(find.text('Skip'), findsNothing);
+  });
+
+  testWidgets('Get started saves the welcome and shows the empty Today', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app());
+    await _acceptDisclaimer(tester);
+
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.text('Get started'));
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome to Daily Anchor'), findsNothing);
     expect(find.text('Today'), findsOneWidget);
-    expect(find.text('Morning water'), findsOneWidget);
-    expect(find.text('Call someone'), findsOneWidget);
-    expect(find.text('Short walk'), findsNothing);
-    expect(routines.routines.map((r) => r.title), [
-      'Morning water',
-      'Call someone',
-    ]);
-    expect(routines.routines.first.iconKey, 'water');
+    expect(find.text('Add your first routine'), findsOneWidget);
     expect((await SettingsRepository().load()).welcomeSeen, isTrue);
   });
 
-  testWidgets('starting with nothing chosen leads to an empty Today', (
-    tester,
-  ) async {
-    final routines = InMemoryRoutineRepository(routines: []);
-    await tester.pumpWidget(_app(routines));
+  testWidgets('Skip goes straight to the empty Today', (tester) async {
+    await tester.pumpWidget(_app());
+    await _acceptDisclaimer(tester);
+
+    await tester.tap(find.text('Skip'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Get started'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('No routines yet. Add your first one below.'),
-      findsOneWidget,
-    );
-    expect(routines.routines, isEmpty);
+    expect(find.text('Add your first routine'), findsOneWidget);
+    expect((await SettingsRepository().load()).welcomeSeen, isTrue);
   });
 
-  testWidgets('a failed save stays on the welcome screen with a message', (
-    tester,
-  ) async {
-    final routines = InMemoryRoutineRepository(routines: [])..failWrite = true;
-    await tester.pumpWidget(_app(routines));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Morning water'));
-    await tester.pump();
-    await tester.tap(find.text('Get started'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('That did not save. Please try again.'), findsOneWidget);
-    expect(find.text('Welcome to Daily Anchor'), findsOneWidget);
-    expect((await SettingsRepository().load()).welcomeSeen, isFalse);
-  });
-
-  testWidgets('routines that already exist are not offered again', (
-    tester,
-  ) async {
-    final routines = InMemoryRoutineRepository(
-      routines: [const Routine(id: 'x', title: 'Morning water')],
+  testWidgets('works with reduce motion on', (tester) async {
+    await tester.pumpWidget(
+      _app(settings: const AppSettings(reduceMotion: true)),
     );
-    await tester.pumpWidget(_app(routines));
+    await _acceptDisclaimer(tester);
+
+    await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.widgetWithText(CheckboxListTile, 'Morning water'),
-      findsNothing,
-    );
-    expect(find.text('Short walk'), findsOneWidget);
+    expect(find.text('Step 2 of 4'), findsOneWidget);
   });
 
   testWidgets('is usable at 200% text with no overflow', (tester) async {
@@ -124,15 +133,19 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(
-      _app(InMemoryRoutineRepository(routines: []), textScale: 2.0),
-    );
+    await tester.pumpWidget(_app(settings: const AppSettings(textScale: 2.0)));
     await tester.pumpAndSettle();
-
     expect(tester.takeException(), isNull);
-    expect(find.text('Welcome to Daily Anchor'), findsOneWidget);
 
-    await tester.scrollUntilVisible(find.text('Get started'), 200);
+    await tester.tap(find.text('I understand'));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+    expect(find.text('Get started'), findsOneWidget);
   });
 }

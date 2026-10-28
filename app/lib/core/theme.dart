@@ -9,11 +9,11 @@ const _standardScheme = ColorScheme.light(
 );
 
 const _highContrastScheme = ColorScheme.dark(
-  primary: Color(0xFFFFD60A),
+  primary: Color(0xFF4ADE80),
   onPrimary: Colors.black,
   surface: Colors.black,
   onSurface: Colors.white,
-  outline: Colors.white,
+  outline: Color(0xFF4ADE80),
 );
 
 ThemeData buildTheme({required bool highContrast}) {
@@ -52,7 +52,7 @@ ThemeData buildTheme({required bool highContrast}) {
       activeTrackColor: scheme.primary,
       // Mid-gray against the light surface keeps the empty track visible.
       inactiveTrackColor: highContrast
-          ? scheme.outline
+          ? const Color(0xFF9AA5A0)
           : const Color(0xFF7F8B94),
       thumbColor: scheme.primary,
       activeTickMarkColor: scheme.onPrimary,

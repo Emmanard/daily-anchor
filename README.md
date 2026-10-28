@@ -10,7 +10,7 @@ I built it on my own initiative while applying for the Flutter + Node.js role at
 
 | Part | State |
 |---|---|
-| Flutter app: welcome, routines (add, edit, delete, complete, undo), word exercise, settings | Built, tested on Android and iOS simulators |
+| Flutter app: splash, welcome cards, routines (add, edit, delete, complete, undo), word exercise, ideas form, settings | Built, tested on Android and iOS simulators |
 | Accessibility: text size up to 200%, high-contrast theme, reduce-motion, tap-target checks | Built. Contrast checks and a screen-reader pass still to do |
 | Node.js API (Express, TypeScript, Zod, Prisma, Postgres) | Next |
 | Offline queue and idempotent sync, progress screen | Next, after the API |
@@ -54,15 +54,17 @@ app/lib
   main.dart, app.dart     start-up, theme and text scale, first-run switch
   core/                   theme, clock, ids, SQLite setup, event model and repository
   features/
-    welcome/              first-run screen with the disclaimer and suggestions
-    today/                routines list, complete and undo, add / edit / delete
+    splash/               branded splash shown at launch
+    welcome/              "Before you start" popup and four intro cards
+    feedback/             "Share your ideas" form
+    today/                routines list, empty state with ideas, complete and undo, add / edit / delete
     recall/               word exercise: round generation, scoring, flow
     settings/             text size, high contrast, reduce motion (persisted)
 ```
 
 - State: Riverpod `Notifier` and `AsyncNotifier`. Repositories sit behind small interfaces so tests can use in-memory fakes.
 - Storage: `shared_preferences` for settings, `sqflite` for events and routines.
-- Event log: completing a routine, undoing it and finishing a word exercise each append one event. What the screen shows is derived from those events.
+- Event log: completing a routine, undoing it, finishing a word exercise and sending an idea each append one event. What the screen shows is derived from those events.
 
 Planned sync, in outline:
 
@@ -98,6 +100,8 @@ What surprised me and what did not map:
 - One codebase still means two apps. A change reaches Android and iOS only when each one is rebuilt or hot reloaded.
 - The first Android build failed with "No space left on device" while Gradle unpacked the NDK. Native toolchain size is a real cost that React Native with Expo hides.
 - Layout bugs show up as visible overflow errors in debug builds. That was useful, because it caught problems at large text sizes early.
+- A widget test caught a crash I had not seen: with reduce motion on, asking `PageController.animateToPage` for a zero duration fails an assertion, so reduced motion has to jump to the page instead.
+- The iOS simulator caches launch screens, so a new splash can look unchanged until the simulator is restarted.
 
 ## Decision log
 
@@ -112,9 +116,10 @@ What surprised me and what did not map:
 | Routines live only on the device; the server will receive events only | Sync routine definitions too | Keeps the API small and the sync story simple | Sync routines if multi-device matters |
 | Deleting a routine removes its row and name; completion events stay | Hide it with an "archived" flag (my first version) | Events hold only an id, so nothing needs the old row, and a delete should remove the user's text | n/a |
 | In-app text size multiplies the system text size, range 100% to 200% | Replace the system setting | Respects an existing operating system preference | Cap the combined value |
-| High contrast is a separate dark theme with thick outlines | A slightly stronger light theme | It has to be clearly different, not just a little darker | Test with low-vision users |
 | The exercise is called a "word exercise", not a "test", and shows a plain count | A score or grade | No assessment or diagnostic implication | Agree wording with clinical staff |
-| Welcome screen carries the disclaimer; routines are suggested, not created for the user | Pre-filled routines | The user chooses what matters to them | n/a |
+| The disclaimer is a popup the user must accept; the welcome is four intro cards; routines start empty with tappable examples | A disclaimer line on the welcome screen, pre-filled routines | A clear acknowledgement before use, and the user chooses what matters to them | Wording reviewed with clinical staff |
+| Ideas from users are stored as a `feedback_submitted` event and will upload with the other events | A separate feedback endpoint | Reuses the same offline queue and idempotent upload; the form asks users not to enter personal or health details | A moderated channel if this were real |
+| High contrast is green on black, checked by tests for contrast ratio | Yellow on black (my first version) | Easier on the eye while still above 7:1 for text and outlines | Test with low-vision users |
 | Elapsed time for the exercise counts from when the choices appear | Include the memorising time | It measures answering, not the fixed 15 seconds | n/a |
 | Icon and splash generator packages are regular dependencies | `dev_dependencies`, the usual convention | Author preference. They only run at build time | Move to `dev_dependencies` |
 | No authentication, no rate limiting, anonymous device id (planned) | Accounts | A deliberate simplification for a demo | Required before real use |

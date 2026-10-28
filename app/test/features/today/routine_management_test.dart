@@ -144,16 +144,61 @@ void main() {
     expect(routines.routines, hasLength(3));
   });
 
-  testWidgets('shows a prompt when there are no routines', (tester) async {
+  testWidgets('an empty list shows an invitation, ideas and no other cards', (
+    tester,
+  ) async {
     _useTallScreen(tester);
     await tester.pumpWidget(_app(InMemoryRoutineRepository(routines: [])));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('No routines yet. Add your first one below.'),
-      findsOneWidget,
-    );
+    expect(find.text('Add your first routine'), findsOneWidget);
     expect(find.text('Add a routine'), findsOneWidget);
+    expect(find.text('Some ideas'), findsOneWidget);
+    expect(find.text('Morning water'), findsOneWidget);
+    expect(find.text('Short walk'), findsOneWidget);
+    expect(find.text('Word recall'), findsNothing);
+    expect(find.text('Share your ideas'), findsNothing);
+  });
+
+  testWidgets('choosing an idea fills in the form and keeps its icon', (
+    tester,
+  ) async {
+    _useTallScreen(tester);
+    final routines = InMemoryRoutineRepository(routines: []);
+    await tester.pumpWidget(_app(routines));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Short walk'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(TextField, 'Short walk'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(routines.routines.single.title, 'Short walk');
+    expect(routines.routines.single.iconKey, 'walk');
+    expect(find.text('Add your first routine'), findsNothing);
+    expect(find.text('Word recall'), findsOneWidget);
+    expect(find.text('Share your ideas'), findsOneWidget);
+  });
+
+  testWidgets('deleting the last routine returns to the invitation', (
+    tester,
+  ) async {
+    _useTallScreen(tester);
+    final routines = InMemoryRoutineRepository(
+      routines: [starterRoutines.first],
+    );
+    await tester.pumpWidget(_app(routines));
+    await tester.pumpAndSettle();
+
+    await _openMenu(tester, 'Morning water');
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add your first routine'), findsOneWidget);
   });
 
   testWidgets('is usable at 200% text with no overflow', (tester) async {

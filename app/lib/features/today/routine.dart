@@ -13,7 +13,9 @@ class Routine {
   final String title;
   final String iconKey;
 
-  IconData get icon => switch (iconKey) {
+  IconData get icon => iconFor(iconKey);
+
+  static IconData iconFor(String iconKey) => switch (iconKey) {
     'water' => Icons.water_drop_outlined,
     'walk' => Icons.directions_walk,
     'call' => Icons.call_outlined,

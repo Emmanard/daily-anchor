@@ -1,7 +1,8 @@
 enum EventType {
   routineCompleted('routine_completed'),
   routineUndone('routine_undone'),
-  recallCompleted('recall_completed');
+  recallCompleted('recall_completed'),
+  feedbackSubmitted('feedback_submitted');
 
   const EventType(this.wireName);
 

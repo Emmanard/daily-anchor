@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/widgets/anchor_mark.dart';
+import '../feedback/feedback_screen.dart';
 import '../recall/recall_screen.dart';
 import '../settings/settings_screen.dart';
 import 'routine.dart';
 import 'routine_form_screen.dart';
+import 'routine_suggestions.dart';
 import 'routines_provider.dart';
 import 'today_provider.dart';
 
@@ -40,14 +43,23 @@ class TodayScreen extends ConsumerWidget {
             )
           : routineList == null || completed == null
           ? const Center(child: CircularProgressIndicator())
+          : routineList.isEmpty
+          ? _EmptyState(
+              onAdd: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const RoutineFormScreen(),
+                ),
+              ),
+              onExample: (title, iconKey) => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      RoutineFormScreen(initialTitle: title, iconKey: iconKey),
+                ),
+              ),
+            )
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                if (routineList.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 16),
-                    child: Text('No routines yet. Add your first one below.'),
-                  ),
                 for (final routine in routineList) ...[
                   _RoutineCard(
                     routine: routine,
@@ -76,6 +88,8 @@ class TodayScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 const _RecallCard(),
+                const SizedBox(height: 16),
+                const _FeedbackCard(),
               ],
             ),
     );
@@ -305,6 +319,124 @@ class _RecallCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _FeedbackCard extends StatelessWidget {
+  const _FeedbackCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MergeSemantics(
+              child: Row(
+                children: [
+                  const ExcludeSemantics(
+                    child: Icon(Icons.chat_bubble_outline, size: 40),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Share your ideas', style: textTheme.titleLarge),
+                        Text(
+                          'Tell us what you would like added.',
+                          style: textTheme.bodyLarge,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(56),
+              ),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const FeedbackScreen()),
+              ),
+              child: const Text('Write an idea'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.onAdd, required this.onExample});
+
+  final VoidCallback onAdd;
+  final void Function(String title, String iconKey) onExample;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const SizedBox(height: 16),
+        const Center(child: AnchorMark(size: 120)),
+        const SizedBox(height: 24),
+        Semantics(
+          header: true,
+          child: Text(
+            'Add your first routine',
+            textAlign: TextAlign.center,
+            style: textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Pick something small you want to do each day.',
+          textAlign: TextAlign.center,
+          style: textTheme.titleMedium,
+        ),
+        const SizedBox(height: 24),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+          onPressed: onAdd,
+          icon: const Icon(Icons.add),
+          label: const Text('Add a routine'),
+        ),
+        const SizedBox(height: 32),
+        Text('Some ideas', style: textTheme.titleLarge),
+        const SizedBox(height: 8),
+        for (final example in routineSuggestions) ...[
+          Card(
+            child: ListTile(
+              minTileHeight: 64,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              leading: ExcludeSemantics(
+                child: Icon(Routine.iconFor(example.iconKey)),
+              ),
+              title: Text(
+                example.title,
+                style: textTheme.titleMedium,
+                semanticsLabel: 'Add ${example.title}',
+              ),
+              trailing: const ExcludeSemantics(child: Icon(Icons.add)),
+              onTap: () => onExample(example.title, example.iconKey),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ],
     );
   }
 }

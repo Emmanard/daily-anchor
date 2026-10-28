@@ -13,6 +13,7 @@ Set<String> completedRoutineIds(Iterable<AppEvent> events) {
       case EventType.routineUndone:
         completed.remove(routineId);
       case EventType.recallCompleted:
+      case EventType.feedbackSubmitted:
         break;
     }
   }

@@ -26,7 +26,7 @@ Future<void> main() async {
           SqfliteRoutineRepository(database),
         ),
       ],
-      child: const DailyAnchorApp(),
+      child: const DailyAnchorApp(showSplash: true),
     ),
   );
 }
