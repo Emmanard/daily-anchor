@@ -12,7 +12,7 @@ I built it on my own initiative while applying for the Flutter + Node.js role at
 |---|---|
 | Flutter app: splash, welcome cards, routines (add, edit, delete, complete, undo), word exercise, ideas form, settings | Built, tested on Android and iOS simulators |
 | Accessibility: text size up to 200%, high-contrast theme, reduce-motion, tap-target checks | Built. Contrast checks and a screen-reader pass still to do |
-| Node.js API (Express, TypeScript, Zod, Prisma, Postgres) | Next |
+| Node.js API (Express, TypeScript, Zod, Prisma, Postgres): `GET /health`, `POST /events`, `GET /progress` | Written. Checked with type checks and database-free tests; the tests against a real PostgreSQL are still to be run |
 | Offline queue and idempotent sync, progress screen | Next, after the API |
 | CI, release APK, demo recording | Planned |
 
@@ -24,7 +24,7 @@ I built it on my own initiative while applying for the Flutter + Node.js role at
 - Tests across layers: pure Dart logic, a real SQLite database (including schema upgrades), and widget flows with error and empty states.
 - A written decision log and the questions I would take to a medical and product team (below).
 
-Planned, not yet built: a Node.js API with validation and idempotent event upload, and CI.
+Written but not yet connected to the app: a Node.js API with validation and idempotent event upload. Planned: the app-side sync, the Progress screen and CI.
 
 ## Run it
 
@@ -45,11 +45,54 @@ flutter analyze
 flutter test
 ```
 
-Configuration planned for the API step, names only (no values are stored in the repository): `DATABASE_URL`, `PORT` for the API and `API_BASE_URL`, passed to the app with `--dart-define`.
+### API
+
+Prerequisites: Node 22 (22.18 or newer) and Docker for the local database.
+
+Environment variables, names only (no values are stored in the repository). The API reads them from the process environment and never from a file:
+
+| Variable | Used by | Purpose |
+|---|---|---|
+| `POSTGRES_PASSWORD` | `docker compose` | Password for the local PostgreSQL container |
+| `DATABASE_URL` | API, `prisma migrate` | Connection string for the development database |
+| `TEST_DATABASE_URL` | API tests | Connection string for a separate, disposable test database |
+| `PORT` | API | Optional, defaults to 3000 |
+| `API_BASE_URL` | Flutter app | Passed with `--dart-define` once sync is connected |
+
+```
+cd api
+npm install                      # also see: npm run generate
+docker compose up -d             # local PostgreSQL (export POSTGRES_PASSWORD first)
+npm run migrate:deploy           # create the tables (DATABASE_URL set)
+npm run dev                      # start the API
+```
+
+Tests:
+
+```
+cd api
+npm run typecheck
+npm test                         # most tests need no database
+```
+
+The tests in `test/prisma-store.test.ts` need a real PostgreSQL database with the migrations applied, and they delete all events. They run only when `TEST_DATABASE_URL` is set, and they never touch `DATABASE_URL`.
+
+Endpoints:
+
+| Request | Result |
+|---|---|
+| `GET /health` | `{ "status": "ok" }` |
+| `POST /events` with `{ "deviceId": uuid, "events": [...] }` | `{ "accepted": [ids], "duplicates": [ids], "rejected": [{ "index", "id", "reason" }] }`. At most 100 events per request. A bad event is rejected on its own, and an id that is already stored is reported as a duplicate and never stored twice |
+| `GET /progress?deviceId=...&days=7&utcOffsetMinutes=0` | One entry per day with `routinesCompleted` and `recallAttempts`, oldest first |
 
 ## Architecture
 
 ```
+api/
+  src/                    Express app, validation (Zod), progress calculation, storage
+  prisma/                 database schema and migration
+  test/                   unit, HTTP and database tests
+
 app/lib
   main.dart, app.dart     start-up, theme and text scale, first-run switch
   core/                   theme, clock, ids, SQLite setup, event model and repository
@@ -122,7 +165,15 @@ What surprised me and what did not map:
 | High contrast is green on black, checked by tests for contrast ratio | Yellow on black (my first version) | Easier on the eye while still above 7:1 for text and outlines | Test with low-vision users |
 | Elapsed time for the exercise counts from when the choices appear | Include the memorising time | It measures answering, not the fixed 15 seconds | n/a |
 | Icon and splash generator packages are regular dependencies | `dev_dependencies`, the usual convention | Author preference. They only run at build time | Move to `dev_dependencies` |
-| No authentication, no rate limiting, anonymous device id (planned) | Accounts | A deliberate simplification for a demo | Required before real use |
+| API storage sits behind an `EventStore` interface, with a Prisma and PostgreSQL implementation | Calling Prisma directly from the routes | Most behavior can be tested without a database, the same way the app uses in-memory fakes | n/a |
+| The database primary key decides what is new (`createManyAndReturn` with `skipDuplicates`) | Check for existing ids first, then insert | One statement, no race between two requests that send the same id at once | Measure at larger batch sizes |
+| A bad event is reported in `rejected` with its position (`index`) and a reason that never repeats what was sent; its `id` is `null` when none was sent | Fail the whole batch | The rest of the batch is still stored, and free text such as feedback is never echoed back or logged | n/a |
+| A batch above 100 events is refused with 413 and nothing is stored | Store the first 100 | A client that ignores the limit finds out immediately | n/a |
+| Events may be up to 24 hours in the future; later ones are rejected | No check | Tolerates clock drift but stops obviously wrong timestamps | Tighten once real devices are observed |
+| Progress counts a routine as done on a day when its latest event that day is a completion, and uses the device's UTC offset for the day boundary | Count raw completions, or use UTC days | Matches what the app shows, and a late-evening action lands on the right local day | Handle daylight saving by sending the offset per event |
+| Prisma 7.10 with the driver adapter, TypeScript 6.0, tsx to run the server | Prisma 8 (release candidate), TypeScript 7 (released the day I wrote this) | Stable versions with documented setup | Move to Prisma 8 once it is stable |
+| Local PostgreSQL 17 in Docker | PostgreSQL 18, SQLite | 17 is widely offered by hosting providers; a real PostgreSQL is what the API runs on | n/a |
+| No authentication, no rate limiting, anonymous device id | Accounts | A deliberate simplification for a demo | Required before real use |
 
 Assumptions on underspecified parts: the word list and the routine suggestions are my own, the exercise length (5 words, 15 seconds) is a guess, and none of the copy has been reviewed for reading level.
 
@@ -149,7 +200,7 @@ These are ideas only. None is built.
 ## Known limitations
 
 - No authentication, rate limiting or per-user data; an anonymous device id is planned.
-- The server and sync are not built yet.
+- The app does not upload anything yet: sync and the Progress screen are still to be built. The API has been type-checked and tested without a database, and its tests against PostgreSQL have not been run yet.
 - iOS runs in the simulator only (no paid Apple developer account, so no installable build).
 - English only. German would come first if localization were added.
 - "Today" is fixed when the screen loads and does not roll over at midnight until the app is reopened.

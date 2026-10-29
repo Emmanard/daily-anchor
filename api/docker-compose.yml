@@ -1,0 +1,21 @@
+# Local PostgreSQL for development and tests. Nothing here is a real secret: the
+# password has no default and must be exported in your shell before starting.
+services:
+  db:
+    image: postgres:17-alpine
+    ports:
+      - '127.0.0.1:5432:5432'
+    environment:
+      POSTGRES_USER: daily_anchor
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Export POSTGRES_PASSWORD before starting}
+      POSTGRES_DB: daily_anchor
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U daily_anchor -d daily_anchor']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:
