@@ -1,15 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/clock.dart';
 import '../../core/events/app_event.dart';
 import '../../core/events/event_repository.dart';
 import '../../core/ids.dart';
+import '../../core/sync/sync_controller.dart';
 import 'completed_routines.dart';
-
-/// Overridden in main() with the opened database.
-final eventRepositoryProvider = Provider<EventRepository>(
-  (ref) => throw UnimplementedError('eventRepositoryProvider not overridden'),
-);
 
 class TodayNotifier extends AsyncNotifier<Set<String>> {
   final _inFlight = <String>{};
@@ -50,6 +48,7 @@ class TodayNotifier extends AsyncNotifier<Set<String>> {
             ? (Set.of(current)..remove(routineId))
             : {...current, routineId},
       );
+      unawaited(ref.read(syncControllerProvider.notifier).requestSync());
       return true;
     } catch (_) {
       return false;

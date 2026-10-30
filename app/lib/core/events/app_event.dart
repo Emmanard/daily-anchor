@@ -26,4 +26,20 @@ class AppEvent {
   final Map<String, Object?> payload;
   final DateTime occurredAt;
   final bool synced;
+
+  AppEvent asSynced() => AppEvent(
+    id: id,
+    type: type,
+    payload: payload,
+    occurredAt: occurredAt,
+    synced: true,
+  );
+
+  /// The form the API expects.
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'type': type.wireName,
+    'payload': payload,
+    'occurredAt': occurredAt.toUtc().toIso8601String(),
+  };
 }

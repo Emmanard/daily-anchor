@@ -3,7 +3,7 @@ import 'package:daily_anchor/features/settings/app_settings.dart';
 import 'package:daily_anchor/features/settings/settings_provider.dart';
 import 'package:daily_anchor/features/settings/settings_repository.dart';
 import 'package:daily_anchor/features/today/routines_provider.dart';
-import 'package:daily_anchor/features/today/today_provider.dart';
+import 'package:daily_anchor/core/events/event_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

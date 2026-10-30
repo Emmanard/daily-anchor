@@ -20,4 +20,22 @@ class InMemoryEventRepository implements EventRepository {
     if (failLoad) throw StateError('load failed');
     return events.where((e) => !e.occurredAt.isBefore(since)).toList();
   }
+
+  @override
+  Future<List<AppEvent>> unsynced({int limit = 100}) async {
+    final waiting = events.where((e) => !e.synced).toList()
+      ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+    return waiting.take(limit).toList();
+  }
+
+  @override
+  Future<int> unsyncedCount() async => events.where((e) => !e.synced).length;
+
+  @override
+  Future<void> markSynced(Iterable<String> ids) async {
+    final wanted = ids.toSet();
+    for (var i = 0; i < events.length; i++) {
+      if (wanted.contains(events[i].id)) events[i] = events[i].asSynced();
+    }
+  }
 }

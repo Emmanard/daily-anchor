@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/sync/sync_controller.dart';
 import 'core/theme.dart';
 import 'features/settings/settings_provider.dart';
 import 'features/splash/splash_screen.dart';
@@ -32,7 +33,7 @@ class DailyAnchorApp extends ConsumerWidget {
             textScaler: TextScaler.linear(systemScale * settings.textScale),
             disableAnimations: media.disableAnimations || settings.reduceMotion,
           ),
-          child: child!,
+          child: _SyncOnResume(child: child!),
         );
       },
       home: _Root(showSplash: showSplash),
@@ -88,4 +89,39 @@ class _RootState extends ConsumerState<_Root> {
     );
     return welcomeSeen ? const TodayScreen() : const WelcomeScreen();
   }
+}
+
+/// Starts an upload whenever the app comes back to the foreground.
+class _SyncOnResume extends ConsumerStatefulWidget {
+  const _SyncOnResume({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_SyncOnResume> createState() => _SyncOnResumeState();
+}
+
+class _SyncOnResumeState extends ConsumerState<_SyncOnResume>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(ref.read(syncControllerProvider.notifier).requestSync());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

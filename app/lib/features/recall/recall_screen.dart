@@ -6,8 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/clock.dart';
 import '../../core/events/app_event.dart';
+import '../../core/events/event_repository.dart';
 import '../../core/ids.dart';
-import '../today/today_provider.dart';
+import '../../core/sync/sync_controller.dart';
 import 'recall_round.dart';
 
 enum _Phase { intro, memorize, choose, result }
@@ -93,6 +94,9 @@ class _RecallScreenState extends ConsumerState<RecallScreen> {
     }
 
     if (!mounted) return;
+    if (saved) {
+      unawaited(ref.read(syncControllerProvider.notifier).requestSync());
+    }
     setState(() {
       _correct = correct;
       _durationMs = durationMs;

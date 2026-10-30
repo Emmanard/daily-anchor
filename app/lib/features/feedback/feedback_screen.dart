@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/clock.dart';
 import '../../core/events/app_event.dart';
+import '../../core/events/event_repository.dart';
 import '../../core/ids.dart';
-import '../today/today_provider.dart';
+import '../../core/sync/sync_controller.dart';
 
 class FeedbackScreen extends ConsumerStatefulWidget {
   const FeedbackScreen({super.key});
@@ -59,6 +62,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
     }
 
     if (!mounted) return;
+    unawaited(ref.read(syncControllerProvider.notifier).requestSync());
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
     messenger.showSnackBar(

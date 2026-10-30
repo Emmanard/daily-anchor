@@ -32,6 +32,41 @@ class SqfliteEventRepository implements EventRepository {
     return rows.map(_fromRow).toList();
   }
 
+  @override
+  Future<List<AppEvent>> unsynced({int limit = 100}) async {
+    final rows = await _db.query(
+      'events',
+      where: 'synced = 0',
+      orderBy: 'occurred_at ASC, rowid ASC',
+      limit: limit,
+    );
+    return rows.map(_fromRow).toList();
+  }
+
+  @override
+  Future<int> unsyncedCount() async {
+    final rows = await _db.rawQuery(
+      'SELECT COUNT(*) AS count FROM events WHERE synced = 0',
+    );
+    return Sqflite.firstIntValue(rows) ?? 0;
+  }
+
+  @override
+  Future<void> markSynced(Iterable<String> ids) async {
+    final list = ids.toList();
+    if (list.isEmpty) return;
+    // Chunked to stay well below SQLite's limit on bound variables.
+    for (var start = 0; start < list.length; start += 500) {
+      final chunk = list.sublist(start, (start + 500).clamp(0, list.length));
+      await _db.update(
+        'events',
+        {'synced': 1},
+        where: 'id IN (${List.filled(chunk.length, '?').join(',')})',
+        whereArgs: chunk,
+      );
+    }
+  }
+
   AppEvent _fromRow(Map<String, Object?> row) {
     return AppEvent(
       id: row['id']! as String,

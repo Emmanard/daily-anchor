@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/widgets/anchor_mark.dart';
+import '../../core/widgets/sync_status_line.dart';
 import '../feedback/feedback_screen.dart';
+import '../progress/progress_screen.dart';
 import '../recall/recall_screen.dart';
 import '../settings/settings_screen.dart';
 import 'routine.dart';
@@ -26,6 +28,13 @@ class TodayScreen extends ConsumerWidget {
         title: const Text('Today'),
         actions: [
           IconButton(
+            tooltip: 'Progress',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ProgressScreen()),
+            ),
+          ),
+          IconButton(
             tooltip: 'Settings',
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.of(context).push(
@@ -34,64 +43,74 @@ class TodayScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: routines.hasError || today.hasError
-          ? _LoadError(
-              onRetry: () {
-                ref.invalidate(routinesProvider);
-                ref.invalidate(todayProvider);
-              },
-            )
-          : routineList == null || completed == null
-          ? const Center(child: CircularProgressIndicator())
-          : routineList.isEmpty
-          ? _EmptyState(
-              onAdd: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const RoutineFormScreen(),
-                ),
-              ),
-              onExample: (title, iconKey) => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      RoutineFormScreen(initialTitle: title, iconKey: iconKey),
-                ),
-              ),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                for (final routine in routineList) ...[
-                  _RoutineCard(
-                    routine: routine,
-                    done: completed.contains(routine.id),
-                    onToggle: () => _toggle(context, ref, routine),
-                    onEdit: () => Navigator.of(context).push(
+      body: Column(
+        children: [
+          const SyncStatusLine(),
+          Expanded(
+            child: routines.hasError || today.hasError
+                ? _LoadError(
+                    onRetry: () {
+                      ref.invalidate(routinesProvider);
+                      ref.invalidate(todayProvider);
+                    },
+                  )
+                : routineList == null || completed == null
+                ? const Center(child: CircularProgressIndicator())
+                : routineList.isEmpty
+                ? _EmptyState(
+                    onAdd: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => RoutineFormScreen(routine: routine),
+                        builder: (_) => const RoutineFormScreen(),
                       ),
                     ),
-                    onDelete: () => _confirmDelete(context, ref, routine),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
-                  ),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const RoutineFormScreen(),
+                    onExample: (title, iconKey) => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => RoutineFormScreen(
+                          initialTitle: title,
+                          iconKey: iconKey,
+                        ),
+                      ),
                     ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      for (final routine in routineList) ...[
+                        _RoutineCard(
+                          routine: routine,
+                          done: completed.contains(routine.id),
+                          onToggle: () => _toggle(context, ref, routine),
+                          onEdit: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  RoutineFormScreen(routine: routine),
+                            ),
+                          ),
+                          onDelete: () => _confirmDelete(context, ref, routine),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(56),
+                        ),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const RoutineFormScreen(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add a routine'),
+                      ),
+                      const SizedBox(height: 16),
+                      const _RecallCard(),
+                      const SizedBox(height: 16),
+                      const _FeedbackCard(),
+                    ],
                   ),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add a routine'),
-                ),
-                const SizedBox(height: 16),
-                const _RecallCard(),
-                const SizedBox(height: 16),
-                const _FeedbackCard(),
-              ],
-            ),
+          ),
+        ],
+      ),
     );
   }
 
