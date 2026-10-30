@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: Flutter app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.8
+          cache: true
+
+      - name: Install packages
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+  api:
+    name: Node.js API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      # A throwaway database with a password made up for this run only, so no
+      # secret is stored in the repository.
+      - name: Start PostgreSQL
+        run: |
+          password="$(openssl rand -hex 16)"
+          echo "::add-mask::$password"
+          docker run -d --name pg -p 5432:5432 \
+            -e POSTGRES_USER=daily_anchor \
+            -e POSTGRES_PASSWORD="$password" \
+            -e POSTGRES_DB=daily_anchor_test \
+            postgres:17-alpine
+          for i in $(seq 1 30); do
+            docker exec pg pg_isready -U daily_anchor -d daily_anchor_test && break
+            sleep 2
+          done
+          echo "TEST_DATABASE_URL=postgresql://daily_anchor:${password}@localhost:5432/daily_anchor_test" >> "$GITHUB_ENV"
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Generate the database client
+        run: npm run generate
+
+      - name: Create the tables
+        run: npm run migrate:deploy
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
