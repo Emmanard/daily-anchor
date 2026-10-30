@@ -14,7 +14,7 @@ I built it on my own initiative while applying for the Flutter + Node.js role at
 | Offline queue and idempotent sync, with a status line (All saved, Waiting to sync, Syncing, Sync is off) | Built. Checked end to end on the Android emulator against the local API |
 | Node.js API (Express, TypeScript, Zod, Prisma, PostgreSQL): `GET /health`, `POST /events`, `GET /progress` | Built and tested against a real PostgreSQL |
 | Accessibility: text size up to 200%, high-contrast theme, reduce-motion, automated guideline checks on every screen | Built. A manual screen-reader pass (TalkBack, VoiceOver) is still to do |
-| Continuous integration (GitHub Actions) | Written; it has not run on GitHub yet |
+| Continuous integration (GitHub Actions) | Passing on GitHub. Every push runs the app checks (format, analyze, tests) and the API checks (type check and tests against a real PostgreSQL) |
 | Hosted API | Not done. The release APK is built with sync off unless an API address is given |
 
 ## What it demonstrates
@@ -230,5 +230,4 @@ These are ideas only. None is built.
 - English only. German would come first if localization were added.
 - "Today" is fixed when the screen loads and does not roll over at midnight until the app is reopened.
 - Accessibility is checked by automated tests and manual large-text checks. A screen-reader pass on real devices is still to do.
-- The CI workflow has been written and its commands run locally, but it has not run on GitHub yet.
 - Learning-project scope throughout.
