@@ -29,7 +29,7 @@ I built it on my own initiative while applying for the Flutter + Node.js role at
 
 Prerequisites: Flutter (stable, 3.47 at the time of writing), Android Studio for the Android emulator, Xcode for the iOS simulator.
 
-```
+```bash
 cd app
 flutter pub get
 flutter run            # pick a connected emulator or simulator; sync is off
@@ -37,7 +37,7 @@ flutter run            # pick a connected emulator or simulator; sync is off
 
 To connect the app to a local API, pass its address when building. An Android emulator reaches your computer at `10.0.2.2`; the iOS simulator uses `localhost`:
 
-```
+```bash
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000     # Android emulator
 flutter run --dart-define=API_BASE_URL=http://localhost:3000    # iOS simulator
 ```
@@ -46,7 +46,7 @@ Plain HTTP is allowed only for those two local addresses (see the Android networ
 
 Checks:
 
-```
+```bash
 cd app
 dart format .
 flutter analyze
@@ -67,7 +67,7 @@ Environment variables, names only (no values are stored in the repository). The 
 | `PORT` | API | Optional, defaults to 3000 |
 | `API_BASE_URL` | Flutter app | Passed with `--dart-define`. Empty means sync is off |
 
-```
+```bash
 cd api
 npm install                      # also see: npm run generate
 docker compose up -d             # local PostgreSQL (export POSTGRES_PASSWORD first)
@@ -77,7 +77,7 @@ npm run dev                      # start the API on PORT (default 3000)
 
 Tests:
 
-```
+```bash
 cd api
 npm run typecheck
 npm test                         # with TEST_DATABASE_URL set, the database tests run too
@@ -95,7 +95,7 @@ Endpoints:
 
 ## Architecture
 
-```
+```text
 api/
   src/                    Express app, validation (Zod), progress calculation, storage
   prisma/                 database schema and migration
@@ -121,7 +121,7 @@ app/lib
 
 Sync:
 
-```
+```text
 user action -> local event (synced = false)
             -> sync controller starts an upload: at launch, on return to the app,
                after every action, and on a retry timer (5 s, 10 s, 20 s ... up to 5 min)
